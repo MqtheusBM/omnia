@@ -1,9 +1,11 @@
-import { Component, signal } from '@angular/core';
+import { Component, inject, signal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
+import { firstValueFrom } from 'rxjs';
 
 import { AppShellComponent } from '../../components/app-shell/app-shell.component';
 import { PanelComponent } from '../../components/panel/panel.component';
+import { CorreicaoStatus, JobStatus, ProcessosApiService } from '../../services/processos-api.service';
 
 import {
   correicaoPorProcesso,
@@ -25,19 +27,15 @@ import {
   templateUrl: './aprovacao.component.html',
   styleUrl: './aprovacao.component.scss',
 })
-export class AprovacaoComponent {
-  readonly processos: Processo[] = processos;
-  readonly linhasPadrao: ItemVeredito[] = correicaoPorProcesso['padrao'] ?? [];
-
-  readonly etapas = [
-    'Preparando o universo',
-    'Estruturando movimentos e documentos',
-    'Aplicando oito regras',
-    'Verificando exceções',
-    'Agrupando evidências',
-    'Classificando achados',
-    'Preparando o painel correicional',
-  ];
+export class AprovacaoComponent implements OnInit {
+  private readonly processosApi = inject(ProcessosApiService);
+  private readonly route = inject(ActivatedRoute);
+  processos: Processo[] = processos;
+  linhasPadrao: ItemVeredito[] = correicaoPorProcesso['padrao'] ?? [];
+  readonly correicaoId = signal<string | null>(null);
+  readonly jobsPorProcesso = new Map<string, string>();
+  readonly linhasPorProcesso = new Map<string, ItemVeredito[]>();
+  readonly carregandoCorreicao = signal(false);
 
   readonly resumoItems = [
     ['Unidade', '1ª Vara Cível'],
@@ -60,20 +58,76 @@ export class AprovacaoComponent {
   ];
 
   // Estados reativos (Signals)
-  progresso = signal<number>(-1);
   aberto = signal<string | null>(null);
+  erroApi = signal<string | null>(null);
 
-  iniciar(): void {
-    this.progresso.set(0);
-    this.etapas.forEach((_, i) => {
-      setTimeout(() => {
-        this.progresso.set(i + 1);
-      }, (i + 1) * 700);
+  ngOnInit(): void {
+    this.route.queryParams.subscribe((params) => {
+      const id = params['correicao_id'];
+      if (id && id !== this.correicaoId()) {
+        this.correicaoId.set(id);
+        void this.carregarCorreicao(id);
+      }
     });
+  }
+
+  private async carregarCorreicao(id: string): Promise<void> {
+    this.carregandoCorreicao.set(true);
+    this.erroApi.set(null);
+    try {
+      const lote: CorreicaoStatus = await firstValueFrom(this.processosApi.consultarCorreicao(id));
+      const resultados = await Promise.all(lote.jobs.map(async (job) => {
+        if (job.status === 'falhou') return { job, resultado: null };
+        try { return { job, resultado: await firstValueFrom(this.processosApi.obterResultado(job.job_id)) }; }
+        catch { return { job, resultado: null }; }
+      }));
+      this.jobsPorProcesso.clear();
+      this.linhasPorProcesso.clear();
+      this.processos = resultados.map(({ job, resultado }) => {
+        const numero = this.formatarNumero(job.processo_id);
+        this.jobsPorProcesso.set(numero, job.job_id);
+        const linhas = (resultado?.respostas ?? []).map((r) => ({
+          regra: r.pergunta_id,
+          veredito: r.resposta === 'Sim' ? 'Atende' as const : r.resposta === 'Não' ? 'Não atende' as const : 'Não se encaixa' as const,
+          trecho: [r.evidencia, r.observacao].filter(Boolean).join(' · ') || 'Sem evidência textual retornada.',
+        }));
+        this.linhasPorProcesso.set(numero, linhas);
+        return {
+          numero, unidade: 'Vara selecionada', classe: job.arquivo,
+          assunto: 'PDF analisado', situacao: job.status === 'falhou' ? 'Suspenso' : 'Ativo',
+          ultimoMovimento: job.error_message ?? this.rotuloStatus(job.status),
+          ocorrencias: linhas.filter((l) => l.veredito === 'Não atende').length,
+          criticos: 0, atencao: 'Baixa',
+        } as Processo;
+      });
+      this.resumoItems.splice(0, this.resumoItems.length,
+        ['Unidade', 'Vara selecionada'], ['PDFs analisados', String(lote.total_processos)],
+        ['Regras selecionadas', String(lote.regra_ids.length)], ['Status', lote.status],
+        ['Identificador da correição', lote.correicao_id],
+      );
+    } catch {
+      this.erroApi.set('Não foi possível carregar os resultados desta correição.');
+    } finally {
+      this.carregandoCorreicao.set(false);
+    }
+  }
+
+  parametrosRevisao(numero: string): Record<string, string> {
+    const jobId = this.jobsPorProcesso.get(numero);
+    return { processo: numero, ...(jobId ? { job_id: jobId } : {}), ...(this.correicaoId() ? { correicao_id: this.correicaoId()! } : {}) };
+  }
+
+  private rotuloStatus(status: JobStatus): string {
+    return ({ recebido: 'Na fila', ocr_em_andamento: 'Leitura do PDF', ocr_concluido: 'Leitura concluída', analise_em_andamento: 'Aplicação das regras', concluido: 'Análise concluída', revisao_necessaria: 'Revisão humana necessária', falhou: 'Análise falhou' })[status];
+  }
+
+  private formatarNumero(id: string): string {
+    return /^\d{20}$/.test(id) ? `${id.slice(0, 7)}-${id.slice(7, 9)}.${id.slice(9, 13)}.${id[13]}.${id.slice(14, 16)}.${id.slice(16)}` : id;
   }
 
   toggleAberto(numero: string): void {
     this.aberto.update((curr) => (curr === numero ? null : numero));
+    this.linhasPadrao = this.linhasPorProcesso.get(numero) ?? correicaoPorProcesso['padrao'] ?? [];
   }
 
   getVereditoClass(v: Veredito): string {

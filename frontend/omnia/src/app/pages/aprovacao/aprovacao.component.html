@@ -18,6 +18,8 @@
       <!-- Processos da Correição -->
       <app-panel title="Processos da correição"
         description="Visualize a correição feita pelo OMinIA e siga para a validação humana.">
+        @if (carregandoCorreicao()) { <p class="mb-3 text-sm text-muted-foreground">Carregando resultados da execução…</p> }
+        @if (erroApi()) { <p role="alert" class="mb-3 rounded-md border border-risk-high/30 bg-risk-high-soft px-3 py-2 text-sm text-risk-high">{{ erroApi() }}</p> }
         <ul class="space-y-3">
           @for (p of processos; track p.numero) {
           <li class="rounded-md border border-border">
@@ -35,7 +37,7 @@
                   <span
                     [class]="'material-symbols-outlined text-[18px] transition-transform ' + (aberto() === p.numero ? 'rotate-180' : '')">expand_more</span>
                 </button>
-                <a routerLink="/aprovacao-processo" [queryParams]="{ processo: p.numero }"
+                <a routerLink="/aprovacao-processo" [queryParams]="parametrosRevisao(p.numero)"
                   class="inline-flex items-center gap-2 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90">
                   Aprovar
                   <span class="material-symbols-outlined text-[18px]">arrow_forward</span>
@@ -65,43 +67,6 @@
         </ul>
       </app-panel>
 
-      <!-- Painel de Processamento com Animação -->
-      <app-panel title="Processamento" description="Execução registrada com trilha de auditoria.">
-        @if (progresso() < 0) { <p class="text-sm text-muted-foreground">
-          Aguardando aprovação para iniciar a execução em modo somente leitura.
-          </p>
-          } @else {
-          <ol class="space-y-2.5">
-            @for (e of etapas; track e; let i = $index) {
-            <li [class]="
-                  'flex items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-colors ' +
-                  (progresso() > i
-                    ? 'bg-risk-low-soft'
-                    : progresso() === i
-                    ? 'bg-info-soft'
-                    : 'bg-secondary/60 text-muted-foreground')
-                ">
-              @if (progresso() > i) {
-              <span class="material-symbols-outlined text-[18px] text-risk-low">check_circle</span>
-              } @else if (progresso() === i) {
-              <span class="material-symbols-outlined text-[18px] animate-spin text-info">progress_activity</span>
-              } @else {
-              <span class="size-4 rounded-full border border-border"></span>
-              }
-              {{ e }}
-            </li>
-            }
-          </ol>
-          }
-
-          @if (progresso() >= etapas.length) {
-          <a routerLink="/resultados"
-            class="mt-5 inline-flex items-center gap-2 rounded-md bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground transition-opacity hover:opacity-90">
-            Ver painel correicional
-            <span class="material-symbols-outlined text-[18px]">arrow_forward</span>
-          </a>
-          }
-      </app-panel>
     </div>
 
     <!-- Barra Lateral: Governança e Rastreabilidade -->

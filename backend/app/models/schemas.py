@@ -161,6 +161,24 @@ class ValidatedAnalysis(BaseModel):
     audit_log: list[AuditEntry] = Field(default_factory=list)
 
 
+class RelatorioCorreicional(BaseModel):
+    """Relatório institucional em seções para revisão humana no frontend."""
+
+    titulo: str = "Relatório de Correição Ordinária"
+    identificacao_unidade: str
+    apresentacao: str
+    objetivo: str
+    informacoes_relevantes: list[str] = Field(default_factory=list)
+    evolucao_unidade: list[str] = Field(default_factory=list)
+    achados: list[str] = Field(default_factory=list)
+    consideracoes_finais: list[str] = Field(default_factory=list)
+    determinacoes: list[str] = Field(default_factory=list)
+    recomendacoes: list[str] = Field(default_factory=list)
+    conclusao: str
+    dados_pendentes: list[str] = Field(default_factory=list)
+    requer_revisao_humana: bool = True
+
+
 # ─── API Responses ───────────────────────────────────────────────────
 
 
@@ -196,6 +214,7 @@ class JobResultResponse(BaseModel):
     versao_prompt: str
     revisao_necessaria: bool = False
     respostas: list[RespostaItem]
+    relatorio: RelatorioCorreicional | None = None
     aviso: str = Field(
         default="Este resultado é apoio à triagem e exige revisão humana conforme política do usuário."
     )
@@ -207,3 +226,76 @@ class HealthResponse(BaseModel):
     status: str = "ok"
     version: str = "0.1.0"
     service: str = "omnia-backend"
+
+
+class ProcessoCatalogoResponse(BaseModel):
+    processo_id: str
+    numero: str
+    arquivo: str
+    tamanho_bytes: int
+    codigo_origem_cnj: str
+
+
+class CorreicaoCreateRequest(BaseModel):
+    quantidade_processos: int = Field(..., ge=1)
+    unidade: str | None = None
+    processo_ids: list[str] = Field(..., min_length=1)
+    regra_ids: list[str] = Field(..., min_length=1)
+
+    @field_validator("processo_ids", "regra_ids")
+    @classmethod
+    def validar_ids_unicos(cls, values: list[str]) -> list[str]:
+        if len(values) != len(set(values)):
+            raise ValueError("A lista contém identificadores duplicados")
+        return values
+
+
+class CorreicaoCreatedResponse(BaseModel):
+    correicao_id: str
+    status: str
+    total_processos: int
+    quantidade_processos: int
+    unidade: str | None = None
+    processo_ids: list[str]
+    regra_ids: list[str]
+
+
+class CorreicaoJobResponse(BaseModel):
+    job_id: str
+    processo_id: str
+    arquivo: str
+    status: JobStatus
+    total_paginas: int | None = None
+    error_message: str | None = None
+
+
+class CorreicaoStatusResponse(BaseModel):
+    correicao_id: str
+    status: str
+    created_at: datetime | None = None
+    quantidade_processos: int
+    unidade: str | None = None
+    total_processos: int
+    processos_concluidos: int
+    processos_falhos: int
+    processo_ids: list[str]
+    regra_ids: list[str]
+    jobs: list[CorreicaoJobResponse]
+
+
+class RegraDraftRequest(BaseModel):
+    instrucao: str = Field(..., min_length=10, max_length=4000)
+    atende: str = Field(..., min_length=3, max_length=2000)
+    nao_atende: str = Field(..., min_length=3, max_length=2000)
+    nao_se_encaixa: str = Field(..., min_length=3, max_length=2000)
+    ajustes: str | None = Field(default=None, max_length=2000)
+
+
+class RegraDraftResponse(BaseModel):
+    passos: list[str] = Field(..., min_length=3, max_length=10)
+
+
+class RegraCreateRequest(RegraDraftRequest):
+    nome: str = Field(..., min_length=3, max_length=160)
+    descricao: str = Field(..., min_length=10, max_length=1000)
+    passos: list[str] = Field(..., min_length=3, max_length=10)

@@ -8,6 +8,8 @@
   </a>
 
   <div class="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
+    @if (carregandoResultado()) { <p class="text-sm text-muted-foreground">Carregando análise do backend…</p> }
+    @if (erroResultado()) { <p role="alert" class="rounded-md border border-risk-high/30 bg-risk-high-soft px-3 py-2 text-sm text-risk-high">{{ erroResultado() }}</p> }
     <div class="space-y-6">
 
       <!-- CORREIÇÃO DO OMinIA — Regras como accordion       -->
@@ -153,6 +155,9 @@
       <app-panel title="Linha de tramitação"
         description="Sequência de atos processuais. Eventos marcados com sinalizador indicam achados da correição.">
 
+        @if (jobId()) {
+        <p class="text-sm text-muted-foreground">A API retornou respostas e evidências do PDF, mas ainda não fornece eventos de tramitação.</p>
+        } @else {
         <ol class="tramitacao-lista">
           @for (t of timeline; track t.data; let i = $index; let last = $last) {
           <li class="tramitacao-evento" [class.tramitacao-evento--destaque]="t.destaque"
@@ -197,6 +202,7 @@
           </li>
           }
         </ol>
+        }
       </app-panel>
 
 
@@ -300,6 +306,9 @@
         </div>
 
         @if (expandirTramitacoes()) {
+          @if (jobId()) {
+          <p class="mt-2 text-sm text-muted-foreground">Eventos processuais não são fornecidos pela análise do PDF.</p>
+          } @else {
           <!-- Adicionada uma altura máxima (max-h) e scroll (overflow-y-auto) para listas longas -->
           <ol class="mt-2 space-y-2.5 max-h-[320px] overflow-y-auto pr-2">
             @for (t of tramitacoes; track $index) {
@@ -309,6 +318,7 @@
               </li>
             }
           </ol>
+          }
         } @else {
           <p 
             class="text-sm text-muted-foreground cursor-pointer hover:underline mt-1" 

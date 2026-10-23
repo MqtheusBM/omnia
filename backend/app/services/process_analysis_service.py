@@ -27,8 +27,9 @@ from app.models.schemas import (
     ValidatedAnalysis,
 )
 from app.services.document_ai_service import process_document_ocr
-from app.services.gemini_service import analyze_with_gemini
+from app.services.llm_service import analyze_with_llm
 from app.services.ocr_text_service import build_paginated_text
+from app.services.report_generation_service import generate_report
 from app.services.storage_service import get_storage_service
 from app.services.validation_service import validate_llm_response
 
@@ -122,7 +123,7 @@ def run_analysis(
         )
         llm_start = time.time()
 
-        llm_analysis = analyze_with_gemini(
+        llm_analysis = analyze_with_llm(
             paginated_ocr_text=paginated_text,
             questionnaire=questionario,
             prompt_version=DEFAULT_PROMPT_VERSION,
@@ -146,6 +147,14 @@ def run_analysis(
             total_pages=ocr_result.total_pages,
         )
 
+        # ── 5.1 Minuta do relatório institucional ──────────────────
+        report = generate_report(
+            paginated_ocr_text=paginated_text,
+            analysis=validated.model_dump(mode="json"),
+            processo_id=processo_id,
+        )
+        report_ref = storage.save_report(job_id, report.model_dump(mode="json"))
+
         # Salvar resultado validado
         result_ref = storage.save_validated_result(job_id, validated.model_dump())
 
@@ -168,7 +177,9 @@ def run_analysis(
                 "ocr": ocr_ref,
                 "llm_raw": llm_ref,
                 "result": result_ref,
+                "report": report_ref,
             },
+            generated_report=report.model_dump(mode="json"),
         )
 
         # Salvar log de auditoria

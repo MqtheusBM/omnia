@@ -1,0 +1,192 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1240 790" width="100%" height="100%" style="background-color: #0b1120; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+  <defs>
+    <!-- Filtros de Sombra -->
+    <filter id="card-shadow" x="-5%" y="-5%" width="110%" height="115%" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#000000" flood-opacity="0.45" />
+    </filter>
+
+    <!-- Marcadores de Conectores -->
+    <marker id="dot-blue" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6">
+      <circle cx="5" cy="5" r="4" fill="#38bdf8" />
+    </marker>
+    <marker id="dot-green" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6">
+      <circle cx="5" cy="5" r="4" fill="#34d399" />
+    </marker>
+    <marker id="dot-amber" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6">
+      <circle cx="5" cy="5" r="4" fill="#fbbf24" />
+    </marker>
+    <marker id="dot-purple" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6">
+      <circle cx="5" cy="5" r="4" fill="#a78bfa" />
+    </marker>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#94a3b8" />
+    </marker>
+  </defs>
+
+  <!-- Cabeçalho -->
+  <g transform="translate(40, 30)">
+    <rect x="0" y="0" width="44" height="44" rx="10" fill="#1e293b" stroke="#334155" />
+    <path d="M14 16 C14 13 30 13 30 16 C30 19 14 19 14 16 Z M14 22 C14 19 30 19 30 22 C30 25 14 25 14 22 Z M14 28 C14 25 30 25 30 28 C30 31 14 31 14 28 Z" fill="none" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/>
+    <text x="56" y="24" fill="#f8fafc" font-size="20" font-weight="700">Omnia Backend — Diagrama de Banco de Dados</text>
+    <text x="56" y="42" fill="#94a3b8" font-size="13">MongoDB (Database: <tspan fill="#38bdf8">omnia</tspan>) • Coleção Principal &amp; Documentos Embutidos</text>
+  </g>
+
+  <!-- CONEXÕES (LINHAS DE RELACIONAMENTO) -->
+  <!-- jobs.validated_response -> ValidatedAnalysis -->
+  <path d="M 370 475 C 410 475, 410 180, 450 180" fill="none" stroke="#34d399" stroke-width="2" stroke-dasharray="4,4" marker-start="url(#dot-green)" marker-end="url(#arrow)" />
+
+  <!-- jobs.audit_log -> AuditEntry -->
+  <path d="M 370 515 C 410 515, 600 560, 850 190" fill="none" stroke="#fbbf24" stroke-width="2" stroke-dasharray="4,4" marker-start="url(#dot-amber)" marker-end="url(#arrow)" />
+
+  <!-- jobs.raw_llm_response -> LLMRawResponse -->
+  <path d="M 370 455 C 410 455, 620 480, 850 430" fill="none" stroke="#a78bfa" stroke-width="2" stroke-dasharray="4,4" marker-start="url(#dot-purple)" marker-end="url(#arrow)" />
+
+  <!-- ValidatedAnalysis.respostas -> RespostaItem -->
+  <path d="M 610 375 L 610 435" fill="none" stroke="#38bdf8" stroke-width="2" marker-start="url(#dot-blue)" marker-end="url(#arrow)" />
+
+  <!-- jobs.status -> JobStatus Enum -->
+  <path d="M 370 275 C 400 275, 500 710, 850 670" fill="none" stroke="#64748b" stroke-width="1.8" stroke-dasharray="3,3" marker-end="url(#arrow)" />
+
+  <!-- 1. COLEÇÃO: JOBS (DOCUMENTO RAIZ) -->
+  <g transform="translate(40, 95)" filter="url(#card-shadow)">
+    <rect width="330" height="660" rx="10" fill="#1e293b" stroke="#3b82f6" stroke-width="1.8" />
+    <path d="M 0 0 H 330 V 42 H 0 Z" fill="#1e3a8a" rx="10" />
+    <rect x="0" y="32" width="330" height="10" fill="#1e3a8a" />
+    <text x="16" y="27" fill="#ffffff" font-size="14" font-weight="700">collection: jobs</text>
+    <rect x="235" y="11" width="80" height="20" rx="4" fill="#2563eb" />
+    <text x="275" y="25" fill="#ffffff" font-size="10" font-weight="600" text-anchor="middle">MongoDB</text>
+
+    <!-- Campos de jobs -->
+    <g font-size="12" fill="#e2e8f0" transform="translate(16, 60)">
+      <text y="0"><tspan fill="#38bdf8" font-weight="600">_id</tspan>: <tspan fill="#94a3b8">String (PK, job_id)</tspan></text>
+      <text y="24"><tspan fill="#e2e8f0">job_id</tspan>: <tspan fill="#94a3b8">String</tspan></text>
+      <text y="48"><tspan fill="#e2e8f0">processo_id</tspan>: <tspan fill="#94a3b8">String (Nullable)</tspan></text>
+      <text y="72"><tspan fill="#e2e8f0">questionario_id</tspan>: <tspan fill="#94a3b8">String</tspan></text>
+      <text y="96"><tspan fill="#e2e8f0">original_filename</tspan>: <tspan fill="#94a3b8">String</tspan></text>
+      <text y="120"><tspan fill="#e2e8f0">sha256_hash</tspan>: <tspan fill="#94a3b8">String</tspan></text>
+      <text y="144" fill="#60a5fa"><tspan font-weight="600">status</tspan>: <tspan fill="#93c5fd">JobStatus (Enum)</tspan></text>
+      <text y="168"><tspan fill="#e2e8f0">total_pages</tspan>: <tspan fill="#94a3b8">Int (Nullable)</tspan></text>
+
+      <line x1="-5" y1="184" x2="295" y2="184" stroke="#334155" stroke-width="1" />
+
+      <text y="204"><tspan fill="#e2e8f0">created_at</tspan>: <tspan fill="#94a3b8">DateTime (UTC)</tspan></text>
+      <text y="228"><tspan fill="#e2e8f0">started_at</tspan>: <tspan fill="#94a3b8">DateTime (Nullable)</tspan></text>
+      <text y="252"><tspan fill="#e2e8f0">completed_at</tspan>: <tspan fill="#94a3b8">DateTime (Nullable)</tspan></text>
+      <text y="276"><tspan fill="#e2e8f0">ocr_duration_ms</tspan>: <tspan fill="#94a3b8">Float (Nullable)</tspan></text>
+      <text y="300"><tspan fill="#e2e8f0">llm_duration_ms</tspan>: <tspan fill="#94a3b8">Float (Nullable)</tspan></text>
+
+      <line x1="-5" y1="316" x2="295" y2="316" stroke="#334155" stroke-width="1" />
+
+      <text y="336"><tspan fill="#e2e8f0">model_used</tspan>: <tspan fill="#94a3b8">String (Nullable)</tspan></text>
+      <text y="360"><tspan fill="#e2e8f0">prompt_version</tspan>: <tspan fill="#94a3b8">String (Nullable)</tspan></text>
+      <text y="384" fill="#c084fc"><tspan font-weight="600">raw_llm_response</tspan>: <tspan fill="#e9d5ff">Object (Doc)</tspan></text>
+      <text y="408" fill="#34d399"><tspan font-weight="600">validated_response</tspan>: <tspan fill="#a7f3d0">Object (Doc)</tspan></text>
+      <text y="432"><tspan fill="#e2e8f0">revisao_necessaria</tspan>: <tspan fill="#94a3b8">Boolean</tspan></text>
+      <text y="456" fill="#fbbf24"><tspan font-weight="600">audit_log</tspan>: <tspan fill="#fde68a">Array&lt;AuditEntry&gt;</tspan></text>
+
+      <line x1="-5" y1="472" x2="295" y2="472" stroke="#334155" stroke-width="1" />
+
+      <text y="492"><tspan fill="#e2e8f0">error_message</tspan>: <tspan fill="#94a3b8">String (Nullable)</tspan></text>
+      <text y="516"><tspan fill="#e2e8f0">error_category</tspan>: <tspan fill="#94a3b8">String (Nullable)</tspan></text>
+      <text y="540"><tspan fill="#e2e8f0">storage_refs</tspan>: <tspan fill="#94a3b8">Object (Paths/Refs)</tspan></text>
+      <text y="564"><tspan fill="#e2e8f0">questionario_snapshot</tspan>: <tspan fill="#94a3b8">Object (Nullable)</tspan></text>
+    </g>
+  </g>
+
+  <!-- 2. EMBEDDED: ValidatedAnalysis -->
+  <g transform="translate(450, 95)" filter="url(#card-shadow)">
+    <rect width="320" height="260" rx="10" fill="#1e293b" stroke="#10b981" stroke-width="1.8" />
+    <path d="M 0 0 H 320 V 40 H 0 Z" fill="#065f46" rx="10" />
+    <rect x="0" y="30" width="320" height="10" fill="#065f46" />
+    <text x="16" y="26" fill="#ffffff" font-size="14" font-weight="700">ValidatedAnalysis</text>
+    <rect x="220" y="10" width="85" height="20" rx="4" fill="#047857" />
+    <text x="262" y="24" fill="#ffffff" font-size="10" font-weight="600" text-anchor="middle">Embedded</text>
+
+    <g font-size="12" fill="#e2e8f0" transform="translate(16, 62)">
+      <text y="0"><tspan fill="#e2e8f0">processo_id</tspan>: <tspan fill="#94a3b8">String (Nullable)</tspan></text>
+      <text y="24"><tspan fill="#e2e8f0">questionario_id</tspan>: <tspan fill="#94a3b8">String</tspan></text>
+      <text y="48"><tspan fill="#e2e8f0">modelo</tspan>: <tspan fill="#94a3b8">String</tspan></text>
+      <text y="72"><tspan fill="#e2e8f0">versao_prompt</tspan>: <tspan fill="#94a3b8">String</tspan></text>
+      <text y="96"><tspan fill="#e2e8f0">revisao_necessaria</tspan>: <tspan fill="#94a3b8">Boolean</tspan></text>
+      <text y="120" fill="#38bdf8"><tspan font-weight="600">respostas</tspan>: <tspan fill="#bae6fd">Array&lt;RespostaItem&gt;</tspan></text>
+      <text y="144" fill="#fbbf24"><tspan font-weight="600">audit_log</tspan>: <tspan fill="#fde68a">Array&lt;AuditEntry&gt;</tspan></text>
+      <text y="168"><tspan fill="#e2e8f0">created_at</tspan>: <tspan fill="#94a3b8">DateTime</tspan></text>
+    </g>
+  </g>
+
+  <!-- 3. EMBEDDED: RespostaItem -->
+  <g transform="translate(450, 435)" filter="url(#card-shadow)">
+    <rect width="320" height="250" rx="10" fill="#1e293b" stroke="#0ea5e9" stroke-width="1.8" />
+    <path d="M 0 0 H 320 V 40 H 0 Z" fill="#0369a1" rx="10" />
+    <rect x="0" y="30" width="320" height="10" fill="#0369a1" />
+    <text x="16" y="26" fill="#ffffff" font-size="14" font-weight="700">RespostaItem</text>
+    <rect x="220" y="10" width="85" height="20" rx="4" fill="#0284c7" />
+    <text x="262" y="24" fill="#ffffff" font-size="10" font-weight="600" text-anchor="middle">Item List</text>
+
+    <g font-size="12" fill="#e2e8f0" transform="translate(16, 62)">
+      <text y="0"><tspan fill="#38bdf8" font-weight="600">pergunta_id</tspan>: <tspan fill="#94a3b8">String</tspan></text>
+      <text y="24"><tspan fill="#e2e8f0">resposta</tspan>: <tspan fill="#38bdf8">RespostaEnum (Sim|Não|...)</tspan></text>
+      <text y="48"><tspan fill="#e2e8f0">paginas</tspan>: <tspan fill="#94a3b8">Array&lt;Int&gt;</tspan></text>
+      <text y="72"><tspan fill="#e2e8f0">evidencia</tspan>: <tspan fill="#94a3b8">String</tspan></text>
+      <text y="96"><tspan fill="#e2e8f0">confianca</tspan>: <tspan fill="#38bdf8">ConfiancaEnum (alta|méd|bx)</tspan></text>
+      <text y="120"><tspan fill="#e2e8f0">observacao</tspan>: <tspan fill="#94a3b8">String (Nullable)</tspan></text>
+      <text y="144"><tspan fill="#e2e8f0">corrigido_por_auditoria</tspan>: <tspan fill="#94a3b8">Boolean</tspan></text>
+    </g>
+  </g>
+
+  <!-- 4. EMBEDDED: AuditEntry -->
+  <g transform="translate(850, 95)" filter="url(#card-shadow)">
+    <rect width="350" height="210" rx="10" fill="#1e293b" stroke="#f59e0b" stroke-width="1.8" />
+    <path d="M 0 0 H 350 V 40 H 0 Z" fill="#78350f" rx="10" />
+    <rect x="0" y="30" width="350" height="10" fill="#78350f" />
+    <text x="16" y="26" fill="#ffffff" font-size="14" font-weight="700">AuditEntry</text>
+    <rect x="245" y="10" width="90" height="20" rx="4" fill="#d97706" />
+    <text x="290" y="24" fill="#ffffff" font-size="10" font-weight="600" text-anchor="middle">Log Subdoc</text>
+
+    <g font-size="12" fill="#e2e8f0" transform="translate(16, 62)">
+      <text y="0"><tspan fill="#fbbf24">pergunta_id</tspan>: <tspan fill="#94a3b8">String</tspan></text>
+      <text y="24"><tspan fill="#e2e8f0">campo_alterado</tspan>: <tspan fill="#94a3b8">String</tspan></text>
+      <text y="48"><tspan fill="#e2e8f0">valor_original</tspan>: <tspan fill="#94a3b8">String</tspan></text>
+      <text y="72"><tspan fill="#e2e8f0">valor_corrigido</tspan>: <tspan fill="#94a3b8">String</tspan></text>
+      <text y="96"><tspan fill="#e2e8f0">motivo</tspan>: <tspan fill="#94a3b8">String</tspan></text>
+      <text y="120"><tspan fill="#e2e8f0">timestamp</tspan>: <tspan fill="#94a3b8">DateTime (UTC)</tspan></text>
+    </g>
+  </g>
+
+  <!-- 5. EMBEDDED: LLMRawResponse -->
+  <g transform="translate(850, 335)" filter="url(#card-shadow)">
+    <rect width="350" height="175" rx="10" fill="#1e293b" stroke="#8b5cf6" stroke-width="1.8" />
+    <path d="M 0 0 H 350 V 40 H 0 Z" fill="#4c1d95" rx="10" />
+    <rect x="0" y="30" width="350" height="10" fill="#4c1d95" />
+    <text x="16" y="26" fill="#ffffff" font-size="14" font-weight="700">LLMRawResponse</text>
+    <rect x="245" y="10" width="90" height="20" rx="4" fill="#7c3aed" />
+    <text x="290" y="24" fill="#ffffff" font-size="10" font-weight="600" text-anchor="middle">Raw Output</text>
+
+    <g font-size="12" fill="#e2e8f0" transform="translate(16, 62)">
+      <text y="0"><tspan fill="#c084fc">datas_identificadas</tspan>: <tspan fill="#94a3b8">Array&lt;String&gt;</tspan></text>
+      <text y="24"><tspan fill="#e2e8f0">ultima_movimentacao_data</tspan>: <tspan fill="#94a3b8">String (Nullable)</tspan></text>
+      <text y="48"><tspan fill="#e2e8f0">dias_inativo</tspan>: <tspan fill="#94a3b8">Int (Nullable)</tspan></text>
+      <text y="72"><tspan fill="#e2e8f0">regras_violadas</tspan>: <tspan fill="#94a3b8">Array&lt;RegraVioladaItem&gt;</tspan></text>
+    </g>
+  </g>
+
+  <!-- 6. ENUMS: JobStatus -->
+  <g transform="translate(850, 540)" filter="url(#card-shadow)">
+    <rect width="350" height="185" rx="10" fill="#1e293b" stroke="#64748b" stroke-width="1.8" />
+    <path d="M 0 0 H 350 V 38 H 0 Z" fill="#334155" rx="10" />
+    <rect x="0" y="28" width="350" height="10" fill="#334155" />
+    <text x="16" y="25" fill="#ffffff" font-size="13" font-weight="700">JobStatus (Enum)</text>
+    <rect x="260" y="9" width="75" height="20" rx="4" fill="#475569" />
+    <text x="297" y="23" fill="#ffffff" font-size="10" font-weight="600" text-anchor="middle">Lifecycle</text>
+
+    <g font-size="11" fill="#cbd5e1" transform="translate(16, 56)">
+      <text y="0">• <tspan fill="#93c5fd">recebido</tspan> (novo job submetido)</text>
+      <text y="18">• <tspan fill="#93c5fd">ocr_em_andamento</tspan> (Doc AI OCR)</text>
+      <text y="36">• <tspan fill="#93c5fd">ocr_concluido</tspan></text>
+      <text y="54">• <tspan fill="#93c5fd">analise_em_andamento</tspan> (LLM Provider)</text>
+      <text y="72">• <tspan fill="#34d399">concluido</tspan> (finalizado com sucesso)</text>
+      <text y="90">• <tspan fill="#f87171">falhou</tspan> (erro no pipeline)</text>
+      <text y="108">• <tspan fill="#fbbf24">revisao_necessaria</tspan> (divergência/alerta)</text>
+    </g>
+  </g>
+</svg>

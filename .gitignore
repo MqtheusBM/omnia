@@ -11,10 +11,14 @@ __pycache__/
 .coverage
 htmlcov/
 
-# Local env files
+# Local env files & credentials
 .env
 .env.*
 !.env.example
+*.json
+
+# Case PDFs are private source data and belong in Cloud Storage, not GitHub
+/processos/
 
 # IDE & OS
 .vscode/

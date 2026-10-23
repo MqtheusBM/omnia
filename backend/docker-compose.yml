@@ -11,8 +11,10 @@ services:
       - MONGODB_URL=mongodb://mongo:27017
       - STORAGE_BACKEND=local
       - LOCAL_STORAGE_PATH=/app/storage
+      - PROCESSOS_DIR=/app/processos
     volumes:
       - app-storage:/app/storage
+      - ../processos:/app/processos:ro
     depends_on:
       mongo:
         condition: service_started
