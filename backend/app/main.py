@@ -11,8 +11,10 @@ from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes_processos import router as processos_router
+from app.api.routes_correicoes import router as correicoes_router
 from app.core.config import get_settings
 from app.core.logging import setup_logging
 from app.models.database import close_database, get_database
@@ -45,8 +47,17 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.cors_origin_list,
+        allow_credentials=False,
+        allow_methods=["GET", "POST", "OPTIONS"],
+        allow_headers=["Content-Type", "Accept"],
+    )
+
     # Registrar rotas
     app.include_router(processos_router)
+    app.include_router(correicoes_router)
 
     # Healthcheck
     @app.get(

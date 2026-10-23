@@ -55,10 +55,35 @@
             }
           </ol>
 
+          <div class="mt-4 rounded-md border border-border bg-card p-3">
+            <label class="eyebrow block" for="ajustes-regra">Opção 7 — Outro ajuste</label>
+            <p class="mt-1 text-xs text-muted-foreground">
+              Escreva o que não agradou ou como a IA deve revisar os passos propostos.
+            </p>
+            <textarea
+              id="ajustes-regra"
+              [ngModel]="ajustes()"
+              (ngModelChange)="ajustes.set($event)"
+              rows="3"
+              class="mt-2 w-full resize-none rounded-md border border-input bg-card p-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+              placeholder="Ex.: deixe os passos mais objetivos e inclua a conferência das certidões..."
+            ></textarea>
+            <button
+              type="button"
+              (click)="enviar()"
+              [disabled]="gerando() || !ajustes().trim()"
+              class="mt-3 inline-flex items-center gap-2 rounded-md border border-border bg-secondary px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-secondary/80 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <span class="material-symbols-outlined text-[18px]">auto_awesome</span>
+              {{ gerando() ? 'Revisando passos...' : 'Pedir ajuste à IA' }}
+            </button>
+          </div>
+
           @if (!aprovado()) {
             <button
               type="button"
               (click)="aprovarPassos()"
+            [disabled]="gerando() || salvando()"
               class="mt-5 inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
             >
               <span class="material-symbols-outlined text-[18px]">check</span>
@@ -89,14 +114,15 @@
           <button
             type="button"
             (click)="salvarRegra()"
+            [disabled]="salvando()"
             class="mt-4 inline-flex items-center gap-2 rounded-md bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground transition-opacity hover:opacity-90"
           >
-            Salvar regra
+            {{ salvando() ? 'Salvando...' : 'Salvar regra' }}
           </button>
 
           @if (salva()) {
             <p class="mt-3 text-sm text-muted-foreground">
-              Regra “{{ nome() }}” criada como RC-017 v1.0 e disponível na biblioteca.
+              Regra “{{ nome() }}” criada como {{ regraId() }} v1.0 e salva na biblioteca.
             </p>
           }
         </div>
@@ -151,11 +177,17 @@
         <button
           type="button"
           (click)="enviar()"
+          [disabled]="gerando()"
           class="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
         >
           <span class="material-symbols-outlined text-[18px]">send</span>
-          Enviar ao OMinIA
+          {{ gerando() ? 'OMinIA está analisando...' : 'Enviar ao OMinIA' }}
         </button>
+        @if (erro(); as mensagemErro) {
+          <p role="alert" class="mt-3 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+            {{ mensagemErro }}
+          </p>
+        }
       </app-panel>
     </aside>
   </div>

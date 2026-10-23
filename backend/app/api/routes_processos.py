@@ -10,6 +10,7 @@ Endpoints:
 from __future__ import annotations
 
 import uuid
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, UploadFile
 
@@ -22,14 +23,67 @@ from app.models.schemas import (
     JobResultResponse,
     JobStatus,
     JobStatusResponse,
+    RelatorioCorreicional,
     RespostaItem,
+    RegraCreateRequest,
+    RegraDraftRequest,
 )
+from app.services.process_catalog_service import listar_processos
+from app.services.rule_catalog_service import listar_regras, salvar_regra
+from app.services.rule_generation_service import RuleGenerationError, gerar_passos
 from app.services.process_analysis_service import run_analysis
 from app.services.questionario_service import load_questionario
 
 logger = get_logger("api.processos")
 
 router = APIRouter(prefix="/v1/processos", tags=["processos"])
+
+
+@router.get("/catalogo", summary="Listar PDFs disponíveis no acervo local")
+async def catalogo_processos():
+    """Lista metadados dos PDFs sem expor caminhos do servidor ou ler seu conteúdo."""
+    return listar_processos()
+
+
+@router.get("/regras", summary="Listar regras disponíveis para análise")
+async def catalogo_regras():
+    """Retorna o catálogo versionado de regras executáveis."""
+    return listar_regras()
+
+
+@router.post("/regras/gerar", summary="Gerar passos de regra com IA")
+async def gerar_regra(request: RegraDraftRequest):
+    try:
+        return gerar_passos(request)
+    except RuleGenerationError as error:
+        raise HTTPException(status_code=502, detail=str(error)) from error
+
+
+@router.post("/regras", status_code=201, summary="Salvar regra personalizada")
+async def criar_regra(request: RegraCreateRequest):
+    regra_id = f"RC-{uuid.uuid4().hex[:6].upper()}"
+    regra = {
+        "id": regra_id,
+        "nome": request.nome.strip(),
+        "versao": "1.0",
+        "uso": "0 correições",
+        "selecionada": False,
+        "descricao": request.descricao.strip(),
+        "competencia": "Não especificada",
+        "fontes": "Critérios definidos na criação da regra",
+        "autor": "Usuário",
+        "aprovador": "Pendente de aprovação",
+        "confirmacao": "—",
+        "recomendada": False,
+        "instrucao": request.instrucao,
+        "cenario_atende": request.atende,
+        "cenario_nao_atende": request.nao_atende,
+        "cenario_nao_se_encaixa": request.nao_se_encaixa,
+        "ajustes_solicitados": request.ajustes,
+        "passos": request.passos,
+        "created_at": datetime.now(timezone.utc),
+    }
+    return salvar_regra(regra)
 
 
 @router.post(
@@ -189,4 +243,8 @@ async def obter_resultado(job_id: str) -> JobResultResponse:
         versao_prompt=validated.get("versao_prompt", ""),
         revisao_necessaria=validated.get("revisao_necessaria", False),
         respostas=respostas,
+        relatorio=(
+            RelatorioCorreicional(**job["generated_report"])
+            if job.get("generated_report") else None
+        ),
     )

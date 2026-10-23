@@ -1,18 +1,16 @@
 <app-shell
   title="Planejamento da Correição"
-  subtitle="Definição de escopo por unidade, percentual de amostragem e regras correicionais"
+  subtitle="Definição da vara, quantidade de PDFs e regras correicionais"
 >
   <!-- Ações no cabeçalho -->
   <div actions class="flex items-center gap-2">
     @if (etapaAtual() === 3) {
-      <a
-        routerLink="/acompanhamento"
-        [queryParams]="{ unidade: unidadeSelecionada() }"
+      <button type="button" (click)="iniciarCorreicao()" [disabled]="iniciandoCorreicao() || !podeIniciarAmostra() || !regrasSelecionadas().length"
         class="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 shadow-sm"
       >
-        <span>Iniciar correição</span>
+        <span>{{ iniciandoCorreicao() ? 'Enviando lote…' : 'Iniciar correição real' }}</span>
         <span class="material-symbols-outlined text-[18px]">play_arrow</span>
-      </a>
+      </button>
     } @else {
       <span class="text-xs text-muted-foreground hidden sm:inline-block">
         Etapa {{ etapaAtual() }} de 3 · {{ unidadeSelecionada() }}
@@ -121,13 +119,13 @@
                 'text-muted-foreground': etapaAtual() !== 2 && !isEtapaConcluida(2)
               }"
             >
-              Amostragem (10%, 20%, 30%)
+              Quantidade de PDFs
             </p>
             <p class="truncate text-xs text-muted-foreground">
               @if (isEtapaConcluida(2) || etapaAtual() >= 2) {
-                {{ amostragem() }}% ({{ processosAmostradosQtd() | number:'1.0-0' }} processos)
+                {{ processosAmostradosQtd() }} PDFs
               } @else {
-                Definir percentual
+                Definir quantidade
               }
             </p>
           </div>
@@ -196,6 +194,9 @@
           title="Etapa 1: Selecionar a unidade judiciária"
           description="Escolha a vara ou tribunal que será submetido à nova correição ordinária do OMinIA."
         >
+          <p class="mb-4 rounded-md border border-amber-400/40 bg-amber-500/10 px-3 py-2 text-xs text-foreground">
+            A seleção de unidade nesta etapa ainda é demonstrativa. Os PDFs do acervo não possuem metadados de unidade associados; esta escolha não será usada para filtrar os documentos.
+          </p>
           <!-- Filtro / Barra de Busca no Topo da Etapa 1 -->
           <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-border pb-4">
             <div class="relative flex-1 max-w-md">
@@ -332,200 +333,73 @@
     @if (etapaAtual() === 2) {
       <div class="space-y-6 animate-in fade-in-0 duration-200">
         <app-panel
-          title="Etapa 2: Definir percentual de amostragem"
-          description="Selecione o percentual amostral de processos que serão auditados pelo OMinIA."
+          title="Etapa 2: Escolher quantidade de PDFs"
+          description="Defina quantos PDFs do acervo serão analisados nesta correição."
         >
-          <!-- Resumo da Unidade Selecionada -->
           <div class="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-primary/30 bg-primary/5 p-3.5">
             <div class="flex items-center gap-2.5">
               <span class="material-symbols-outlined text-[22px] text-primary">account_balance</span>
               <div>
-                <p class="text-xs text-muted-foreground">Unidade em Planejamento:</p>
+                <p class="text-xs text-muted-foreground">Vara selecionada:</p>
                 <h3 class="font-bold text-foreground text-sm">{{ unidadeSelecionada() }}</h3>
               </div>
             </div>
-
             <div class="flex items-center gap-4 text-xs">
-              <div>
-                <span class="text-muted-foreground">Acervo Total:</span>
-                <span class="num font-bold text-foreground ml-1">{{ unidadeAtual()?.totalProcessos | number:'1.0-0' }}</span>
-              </div>
-              <button
-                type="button"
-                (click)="irParaEtapa(1)"
-                class="text-xs font-medium text-primary hover:underline"
-              >
-                Trocar unidade
-              </button>
+              <span class="text-muted-foreground">PDFs disponíveis: <strong class="text-foreground">{{ processosCatalogo().length }}</strong></span>
+              <button type="button" (click)="irParaEtapa(1)" class="text-xs font-medium text-primary hover:underline">Trocar vara</button>
             </div>
           </div>
-
-          <!-- Seletores Visuais de Amostragem (10%, 20%, 30%) -->
-          <div class="mb-6">
-            <label class="eyebrow text-muted-foreground mb-3 block">
-              Escolha a Amostragem da Correição
+          <label class="mb-6 block max-w-sm">
+            <span class="eyebrow">Quantidade de PDFs para analisar (máximo 30)</span>
+            <input type="number" min="1" max="30" [ngModel]="quantidadePdf()" (ngModelChange)="definirQuantidadePdf($event)"
+              class="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+              [disabled]="carregandoCatalogo() || !processosElegiveis().length" />
+            <span class="mt-1 block text-xs text-muted-foreground">
+              @if (modoSelecaoPdf() === 'manual') {
+                {{ processosAmostradosQtd() }} de {{ quantidadePdf() }} PDFs escolhidos · máximo de 30 por correição.
+              } @else {
+                Serão selecionados {{ processosAmostradosQtd() }} PDFs dentre {{ processosElegiveis().length }} disponíveis.
+              }
+            </span>
+          </label>
+          <div class="mb-5 flex flex-wrap items-center gap-2">
+            <span class="eyebrow mr-2">Escolha dos arquivos:</span>
+            <button type="button" (click)="selecionarModoPdf('automatica')"
+              [class]="'rounded-md border px-3 py-2 text-sm font-medium transition-colors ' + (modoSelecaoPdf() === 'automatica' ? 'border-primary bg-primary/10 text-primary' : 'border-border bg-card hover:bg-secondary')">
+              Seleção automática
+            </button>
+            <button type="button" (click)="selecionarModoPdf('manual')"
+              [class]="'rounded-md border px-3 py-2 text-sm font-medium transition-colors ' + (modoSelecaoPdf() === 'manual' ? 'border-primary bg-primary/10 text-primary' : 'border-border bg-card hover:bg-secondary')">
+              Escolher PDFs específicos
+            </button>
+          </div>
+          @if (carregandoCatalogo()) {
+            <p class="mb-4 text-sm text-muted-foreground">Carregando o catálogo real de PDFs…</p>
+          }
+          @if (erroCatalogo()) {
+            <p role="alert" class="mb-4 rounded-md border border-risk-high/30 bg-risk-high-soft px-3 py-2 text-sm text-risk-high">{{ erroCatalogo() }}</p>
+          }
+          @if (processosCatalogo().length > 0) {
+            <label class="mb-5 block max-w-md">
+              <span class="eyebrow">Filtrar por número CNJ</span>
+              <input type="search" [ngModel]="buscaProcesso()" (ngModelChange)="buscaProcesso.set($event)"
+                placeholder="Digite o número do processo"
+                class="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring" />
             </label>
-            <div class="grid gap-4 sm:grid-cols-3">
-              
-              <!-- Opção 10% -->
-              <div
-                (click)="selecionarAmostragem(10)"
-                class="relative flex flex-col justify-between rounded-xl border p-4 cursor-pointer transition-all duration-200 hover:shadow-md"
-                [ngClass]="{
-                  'border-primary bg-primary/5 ring-2 ring-primary shadow-sm': amostragem() === 10,
-                  'border-border bg-card hover:border-primary/50 hover:bg-secondary/40': amostragem() !== 10
-                }"
-              >
-                <div>
-                  <div class="flex items-center justify-between gap-2">
-                    <span class="font-display text-2xl font-bold text-foreground">10%</span>
-                    <span class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Preliminar</span>
-                  </div>
-                  <h4 class="mt-2 text-sm font-semibold text-foreground">Amostra Rápida</h4>
-                  <p class="mt-1 text-xs text-muted-foreground">
-                    Triagem inicial recomendada para diagnósticos prévios e rotinas básicas.
-                  </p>
-                </div>
-
-                <div class="mt-4 border-t border-border/70 pt-2.5">
-                  <div class="flex items-center justify-between text-xs">
-                    <span class="text-muted-foreground">Processos calculados:</span>
-                    <span class="num font-bold text-foreground text-sm">
-                      {{ (unidadeAtual()?.totalProcessos || 3000) * 0.1 | number:'1.0-0' }}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Opção 20% (Recomendada) -->
-              <div
-                (click)="selecionarAmostragem(20)"
-                class="relative flex flex-col justify-between rounded-xl border p-4 cursor-pointer transition-all duration-200 hover:shadow-md"
-                [ngClass]="{
-                  'border-primary bg-primary/5 ring-2 ring-primary shadow-sm': amostragem() === 20,
-                  'border-border bg-card hover:border-primary/50 hover:bg-secondary/40': amostragem() !== 20
-                }"
-              >
-                <div>
-                  <div class="flex items-center justify-between gap-2">
-                    <span class="font-display text-2xl font-bold text-foreground">20%</span>
-                    <app-tag tone="accent">Recomendado</app-tag>
-                  </div>
-                  <h4 class="mt-2 text-sm font-semibold text-foreground">Amostragem Padrão</h4>
-                  <p class="mt-1 text-xs text-muted-foreground">
-                    Equilíbrio ideal entre representatividade estatística e agilidade de validação.
-                  </p>
-                </div>
-
-                <div class="mt-4 border-t border-border/70 pt-2.5">
-                  <div class="flex items-center justify-between text-xs">
-                    <span class="text-muted-foreground">Processos calculados:</span>
-                    <span class="num font-bold text-foreground text-sm">
-                      {{ (unidadeAtual()?.totalProcessos || 3000) * 0.2 | number:'1.0-0' }}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Opção 30% -->
-              <div
-                (click)="selecionarAmostragem(30)"
-                class="relative flex flex-col justify-between rounded-xl border p-4 cursor-pointer transition-all duration-200 hover:shadow-md"
-                [ngClass]="{
-                  'border-primary bg-primary/5 ring-2 ring-primary shadow-sm': amostragem() === 30,
-                  'border-border bg-card hover:border-primary/50 hover:bg-secondary/40': amostragem() !== 30
-                }"
-              >
-                <div>
-                  <div class="flex items-center justify-between gap-2">
-                    <span class="font-display text-2xl font-bold text-foreground">30%</span>
-                    <span class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Aprofundada</span>
-                  </div>
-                  <h4 class="mt-2 text-sm font-semibold text-foreground">Auditoria Ampliada</h4>
-                  <p class="mt-1 text-xs text-muted-foreground">
-                    Varredura intensiva de processos, indicada para unidades com alto volume de achados.
-                  </p>
-                </div>
-
-                <div class="mt-4 border-t border-border/70 pt-2.5">
-                  <div class="flex items-center justify-between text-xs">
-                    <span class="text-muted-foreground">Processos calculados:</span>
-                    <span class="num font-bold text-foreground text-sm">
-                      {{ (unidadeAtual()?.totalProcessos || 3000) * 0.3 | number:'1.0-0' }}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-            </div>
-          </div>
-
-          <!-- Filtros de Estratificação da Amostra -->
-          <div class="mb-6 rounded-lg border border-border bg-card p-4">
-            <h4 class="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
-              Filtros e critérios de amostragem
-            </h4>
-            <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <label class="block">
-                <span class="eyebrow">Situação processual</span>
-                <div class="mt-1">
-                  <select
-                    class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
-                    [ngModel]="situacaoFiltro()"
-                    (ngModelChange)="situacaoFiltro.set($event)"
-                  >
-                    @for (s of SITUACOES; track s) {
-                      <option [value]="s">{{ s }}</option>
-                    }
-                  </select>
-                </div>
-              </label>
-
-              <label class="block">
-                <span class="eyebrow">Classe processual</span>
-                <div class="mt-1">
-                  <input
-                    type="text"
-                    class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
-                    [ngModel]="classeFiltro()"
-                    (ngModelChange)="classeFiltro.set($event)"
-                    placeholder="Todas as classes"
-                  />
-                </div>
-              </label>
-
-              <label class="block">
-                <span class="eyebrow">Assunto</span>
-                <div class="mt-1">
-                  <input
-                    type="text"
-                    class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
-                    [ngModel]="assuntoFiltro()"
-                    (ngModelChange)="assuntoFiltro.set($event)"
-                    placeholder="Todos os assuntos"
-                  />
-                </div>
-              </label>
-
-              <label class="block">
-                <span class="eyebrow">Período de referência</span>
-                <div class="mt-1">
-                  <div class="w-full rounded-md border border-input bg-secondary/50 px-3 py-2 text-sm text-muted-foreground">
-                    1º/1/2026 a 31/7/2026
-                  </div>
-                </div>
-              </label>
-            </div>
-          </div>
+          }
 
           <!-- Prévia da Amostra de Processos -->
           <div>
             <div class="flex items-center justify-between mb-3">
               <h4 class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Amostra representativa ({{ listaProcessosAmostra().length }} processos no lote preliminar)
+                @if (modoSelecaoPdf() === 'manual') {
+                  Escolha {{ quantidadePdf() }} PDFs ({{ processosAmostradosQtd() }} selecionados)
+                } @else {
+                  Amostra de PDFs disponíveis ({{ listaProcessosAmostra().length }} processos selecionados)
+                }
               </h4>
               <span class="text-xs text-muted-foreground">
-                Total a examinar na execução: <strong class="text-foreground">{{ processosAmostradosQtd() | number:'1.0-0' }} processos</strong>
+                Total de PDFs catalogados: <strong class="text-foreground">{{ processosElegiveis().length | number:'1.0-0' }}</strong>
               </span>
             </div>
 
@@ -534,26 +408,26 @@
                 <thead>
                   <tr class="border-b border-border bg-secondary/40 text-left text-xs uppercase tracking-wide text-muted-foreground">
                     <th class="px-3 py-2.5 font-semibold">Processo</th>
-                    <th class="px-3 py-2.5 font-semibold">Unidade</th>
-                    <th class="px-3 py-2.5 font-semibold">Classe</th>
-                    <th class="px-3 py-2.5 font-semibold">Assunto</th>
-                    <th class="px-3 py-2.5 font-semibold">Situação</th>
-                    <th class="px-3 py-2.5 font-semibold">Atenção</th>
+                    @if (modoSelecaoPdf() === 'manual') { <th class="px-3 py-2.5 font-semibold">Selecionar</th> }
+                    <th class="px-3 py-2.5 font-semibold">Arquivo</th>
+                    <th class="px-3 py-2.5 font-semibold">Código CNJ</th>
+                    <th class="px-3 py-2.5 font-semibold">Tamanho</th>
                   </tr>
                 </thead>
                 <tbody>
-                  @for (p of listaProcessosAmostra(); track p.numero) {
+                  @for (p of (modoSelecaoPdf() === 'manual' ? processosElegiveis() : listaProcessosAmostra()); track p.processo_id) {
                     <tr class="border-b border-border/70 last:border-0 hover:bg-secondary/30 transition-colors">
                       <td class="num px-3 py-2.5 font-medium">{{ p.numero }}</td>
-                      <td class="px-3 py-2.5 text-muted-foreground">{{ p.unidade }}</td>
-                      <td class="px-3 py-2.5 text-muted-foreground">{{ p.classe }}</td>
-                      <td class="px-3 py-2.5 text-muted-foreground">{{ p.assunto }}</td>
-                      <td class="px-3 py-2.5">
-                        <app-tag tone="neutral">{{ p.situacao }}</app-tag>
-                      </td>
-                      <td class="px-3 py-2.5">
-                        <app-risk-badge [level]="p.atencao"></app-risk-badge>
-                      </td>
+                      @if (modoSelecaoPdf() === 'manual') {
+                        <td class="px-3 py-2.5">
+                          <input type="checkbox" [checked]="processoEstaSelecionado(p.processo_id)"
+                            [disabled]="!processoEstaSelecionado(p.processo_id) && processosAmostradosQtd() >= quantidadePdf()"
+                            (change)="alternarProcesso(p.processo_id)" [attr.aria-label]="'Selecionar PDF ' + p.numero" />
+                        </td>
+                      }
+                      <td class="px-3 py-2.5 text-muted-foreground">{{ p.arquivo }}</td>
+                      <td class="px-3 py-2.5 text-muted-foreground">{{ p.codigo_origem_cnj }}</td>
+                      <td class="px-3 py-2.5 text-muted-foreground">{{ formatarTamanho(p.tamanho_bytes) }}</td>
                     </tr>
                   }
                 </tbody>
@@ -574,7 +448,7 @@
 
             <div class="flex items-center gap-3">
               <span class="text-xs text-muted-foreground hidden sm:inline">
-                Amostragem: <strong>{{ amostragem() }}% ({{ processosAmostradosQtd() | number:'1.0-0' }} processos)</strong>
+                Quantidade selecionada: <strong>{{ processosAmostradosQtd() }} PDFs</strong>
               </span>
               <button
                 type="button"
@@ -613,7 +487,7 @@
               <div>
                 <span class="text-muted-foreground">Amostragem:</span>
                 <span class="font-bold text-foreground ml-1">
-                  {{ amostragem() }}% ({{ processosAmostradosQtd() | number:'1.0-0' }} processos de {{ unidadeAtual()?.totalProcessos | number:'1.0-0' }})
+                  {{ processosAmostradosQtd() }} PDFs de {{ processosElegiveis().length | number:'1.0-0' }}
                 </span>
               </div>
             </div>
@@ -814,15 +688,16 @@
               <span>Voltar para Amostragem</span>
             </button>
 
-            <a
-              routerLink="/acompanhamento"
-              [queryParams]="{ unidade: unidadeSelecionada() }"
-              class="inline-flex items-center gap-2 rounded-md bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90"
-            >
-              <span>Concluir e Iniciar Correição</span>
+            <button type="button" (click)="iniciarCorreicao()"
+                [disabled]="iniciandoCorreicao() || !podeIniciarAmostra() || !regrasSelecionadas().length"
+              class="inline-flex items-center gap-2 rounded-md bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50">
+              <span>{{ iniciandoCorreicao() ? 'Enviando lote…' : 'Concluir e iniciar análise real' }}</span>
               <span class="material-symbols-outlined text-[18px]">monitoring</span>
-            </a>
+            </button>
           </div>
+          @if (erroExecucao()) {
+            <p role="alert" class="mt-3 rounded-md border border-risk-high/30 bg-risk-high-soft px-3 py-2 text-sm text-risk-high">{{ erroExecucao() }}</p>
+          }
         </app-panel>
       </div>
     }

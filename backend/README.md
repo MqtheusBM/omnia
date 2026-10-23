@@ -1,6 +1,6 @@
 # Omnia Backend
 
-Serviço de análise de processos judiciais com **Google Document AI** (OCR) e **Gemini Flash** (IA).
+Serviço de análise de processos judiciais com **Google Document AI** (OCR) e provedor LLM configurável (**OpenAI** ou **Gemini**).
 
 > ⚠️ **Aviso**: Este sistema é apoio à triagem processual e exige revisão humana. Não substitui decisão jurídica.
 
@@ -12,7 +12,8 @@ Serviço de análise de processos judiciais com **Google Document AI** (OCR) e *
 
 - Python 3.11+
 - MongoDB (local ou via Docker)
-- Credenciais Google Cloud (Document AI + Gemini)
+- Credenciais Google Cloud (Document AI)
+- Chave da API do provedor LLM selecionado
 
 ### 1. Configurar ambiente
 
@@ -39,10 +40,20 @@ Preencha as seguintes variáveis obrigatórias:
 
 | Variável | Descrição |
 |---|---|
-| `GEMINI_API_KEY` | Chave de API do Gemini (Google AI Studio) |
+| `LLM_PROVIDER` | Provedor ativo: `openai` ou `gemini` (padrão: `openai`) |
+| `OPENAI_API_KEY` | Chave da API OpenAI, necessária quando `LLM_PROVIDER=openai` |
+| `OPENAI_MODEL` | Modelo OpenAI (padrão: `gpt-6.1-sol`) |
+| `GEMINI_API_KEY` | Chave de API do Gemini, necessária quando `LLM_PROVIDER=gemini` |
+| `GEMINI_MODEL` | Modelo Gemini (padrão: `gemini-3.8-flash`) |
 | `GOOGLE_CLOUD_PROJECT` | ID do projeto GCP |
+| `GOOGLE_APPLICATION_CREDENTIALS` | Caminho local para o JSON da conta de serviço |
+| `GOOGLE_APPLICATION_CREDENTIALS_JSON` | Conteúdo JSON como segredo para deploys sem arquivo local |
 | `DOCUMENT_AI_PROCESSOR_ID` | ID do processador Enterprise Document OCR |
 | `GCS_BUCKET_PROCESSOS` | Nome do bucket GCS (para produção) |
+| `GCS_PROCESSOS_PREFIX` | Prefixo dos PDFs do acervo no bucket (padrão: `processos`) |
+| `STORAGE_BACKEND` | `local` para desenvolvimento local ou `gcs` para usar o bucket |
+
+Para alternar entre os provedores, altere `LLM_PROVIDER` no `.env`. O processo de OCR permanece no Google Document AI.
 
 ### 3. Iniciar MongoDB
 
@@ -63,6 +74,16 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 A API estará disponível em: http://localhost:8000
 
+Com `STORAGE_BACKEND=gcs`, o catálogo de processos lista PDFs no prefixo
+`GCS_PROCESSOS_PREFIX` do bucket privado. Os nomes precisam seguir o padrão
+`processo-<20 dígitos>.pdf`. A conta de serviço configurada para o backend
+precisa poder listar e ler os objetos do bucket.
+
+Por padrão, a API aceita chamadas do frontend Angular em `http://localhost:4200`
+e `http://127.0.0.1:4200`. Para outros domínios, configure `CORS_ORIGINS` no
+`.env` como uma lista de origens separadas por vírgula (por exemplo,
+`CORS_ORIGINS=https://omnia.exemplo.gov.br`).
+
 Documentação interativa: http://localhost:8000/docs
 
 ---
@@ -72,9 +93,14 @@ Documentação interativa: http://localhost:8000/docs
 | Método | Rota | Descrição |
 |---|---|---|
 | `GET` | `/health` | Healthcheck |
+| `GET` | `/v1/processos/catalogo` | PDFs disponíveis no acervo local ou no prefixo configurado do GCS |
+| `GET` | `/v1/processos/regras` | Regras habilitadas para análise |
 | `POST` | `/v1/processos/analisar` | Enviar PDF para análise |
 | `GET` | `/v1/processos/{job_id}` | Consultar status do job |
 | `GET` | `/v1/processos/{job_id}/resultado` | Obter resultado final |
+| `POST` | `/v1/correicoes` | Iniciar lote de até 30 PDFs do acervo |
+| `GET` | `/v1/correicoes/{correicao_id}` | Acompanhar jobs de uma correição |
+| `GET` | `/v1/correicoes` | Listar execuções recentes para o dashboard |
 
 ### Exemplo de uso
 

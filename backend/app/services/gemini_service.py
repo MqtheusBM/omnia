@@ -26,6 +26,11 @@ from app.models.schemas import (
 
 logger = get_logger("gemini")
 
+# O SDK já tenta novamente alguns erros transitórios. A repetição explícita
+# cobre os casos que ainda escaparem, com limite para não prender o job.
+_MAX_GEMINI_ATTEMPTS = 3
+_RETRYABLE_STATUS_CODES = {408, 429, 500, 502, 503, 504}
+
 # Diretório de prompts versionados
 PROMPTS_DIR = Path(__file__).resolve().parent.parent / "prompts"
 
@@ -36,6 +41,39 @@ class GeminiServiceError(Exception):
 
 class GeminiJSONParseError(GeminiServiceError):
     """Erro ao parsear JSON da resposta do Gemini."""
+
+
+def _is_retryable_gemini_error(error: Exception) -> bool:
+    """Retorna se o erro parece transitório (HTTP 5xx/429 ou timeout)."""
+    status = getattr(error, "code", None) or getattr(error, "status_code", None)
+    try:
+        if int(status) in _RETRYABLE_STATUS_CODES:
+            return True
+    except (TypeError, ValueError):
+        pass
+
+    # Alguns erros do transporte expõem somente o tipo ou a mensagem.
+    return isinstance(error, TimeoutError) or "timeout" in str(error).lower()
+
+
+def _generate_content_with_retry(client, *, model: str, contents: str, config):
+    """Executa a chamada ao Gemini com até duas repetições exponenciais."""
+    for attempt in range(_MAX_GEMINI_ATTEMPTS):
+        try:
+            return client.models.generate_content(
+                model=model,
+                contents=contents,
+                config=config,
+            )
+        except Exception as error:
+            if attempt == _MAX_GEMINI_ATTEMPTS - 1 or not _is_retryable_gemini_error(error):
+                raise
+            delay_seconds = 2**attempt
+            logger.warning(
+                "Falha transitória no Gemini; repetindo chamada",
+                extra={"attempt": attempt + 1, "retry_in_seconds": delay_seconds},
+            )
+            time.sleep(delay_seconds)
 
 
 def _load_prompt_template(prompt_version: str) -> str:
@@ -180,7 +218,10 @@ def analyze_with_gemini(
     full_user_content = f"{schema_instructions}\n\n{system_prompt}"
 
     # Configurar cliente
-    client = genai.Client(api_key=settings.gemini_api_key)
+    client = genai.Client(
+        api_key=settings.gemini_api_key,
+        http_options=types.HttpOptions(timeout=settings.llm_timeout_seconds * 1000),
+    )
 
     config = types.GenerateContentConfig(
         temperature=0,
@@ -197,7 +238,8 @@ def analyze_with_gemini(
     start_time = time.time()
 
     try:
-        response = client.models.generate_content(
+        response = _generate_content_with_retry(
+            client,
             model=settings.gemini_model,
             contents=full_user_content,
             config=config,
@@ -230,7 +272,8 @@ def analyze_with_gemini(
     )
 
     try:
-        repair_response = client.models.generate_content(
+        repair_response = _generate_content_with_retry(
+            client,
             model=settings.gemini_model,
             contents=repair_prompt,
             config=config,

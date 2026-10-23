@@ -17,6 +17,9 @@ htmlcov/
 !.env.example
 *.json
 
+# Case PDFs are private source data and belong in Cloud Storage, not GitHub
+/processos/
+
 # IDE & OS
 .vscode/
 .idea/

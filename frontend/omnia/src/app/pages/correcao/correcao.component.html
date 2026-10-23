@@ -1,0 +1,62 @@
+<app-shell title="Execução da correição" subtitle="Progresso e resultados retornados pelo backend">
+  <div actions>
+    <a routerLink="/planejamento" class="rounded-md border border-border px-3 py-2 text-sm hover:bg-secondary">Nova correição</a>
+  </div>
+
+  @if (erro()) {
+    <p role="alert" class="mb-4 rounded-md border border-risk-high/30 bg-risk-high-soft px-3 py-2 text-sm text-risk-high">{{ erro() }}</p>
+  }
+
+  @if (correicao(); as execucao) {
+    <div class="space-y-6">
+      <app-panel title="Progresso do lote" [description]="'Correição ' + execucao.correicao_id">
+        <div class="space-y-3">
+          <div class="flex flex-wrap justify-between gap-2 text-sm">
+            <span>Status: <strong>{{ execucao.status }}</strong></span>
+            <span>{{ execucao.processos_concluidos + execucao.processos_falhos }} de {{ execucao.total_processos }} finalizados</span>
+          </div>
+          <div class="h-2 overflow-hidden rounded bg-secondary">
+            <div class="h-full bg-primary transition-all" [style.width.%]="execucao.total_processos ? ((execucao.processos_concluidos + execucao.processos_falhos) / execucao.total_processos) * 100 : 0"></div>
+          </div>
+          <p class="text-xs text-muted-foreground">{{ execucao.quantidade_processos }} PDFs · Regras: {{ execucao.regra_ids.join(', ') }}</p>
+        </div>
+      </app-panel>
+
+      <app-panel title="Processos e respostas">
+        <ul class="space-y-4">
+          @for (job of execucao.jobs; track job.job_id) {
+            <li class="rounded-lg border border-border p-4">
+              <div class="flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <p class="font-mono text-sm font-semibold">{{ formatarNumero(job.processo_id) }}</p>
+                  <p class="text-xs text-muted-foreground">{{ job.arquivo }} · {{ job.total_paginas ?? '—' }} páginas</p>
+                </div>
+                <span class="rounded-full bg-secondary px-2.5 py-1 text-xs">{{ job.status }}</span>
+              </div>
+              @if (job.error_message) {
+                <p class="mt-3 text-sm text-risk-high">{{ job.error_message }}</p>
+              }
+              @if (resultados()[job.job_id]; as resultado) {
+                <ul class="mt-4 space-y-3 border-t border-border pt-3">
+                  @for (resposta of resultado.respostas; track resposta.pergunta_id) {
+                    <li class="rounded bg-secondary/40 p-3">
+                      <div class="flex flex-wrap justify-between gap-2 text-sm">
+                        <strong>{{ resposta.pergunta_id }}</strong>
+                        <span>{{ resposta.resposta }} · confiança {{ resposta.confianca }}</span>
+                      </div>
+                      <p class="mt-1 text-sm">{{ resposta.evidencia }}</p>
+                      <p class="mt-1 text-xs text-muted-foreground">Páginas: {{ resposta.paginas.join(', ') }}</p>
+                    </li>
+                  }
+                </ul>
+                <p class="mt-3 text-xs text-muted-foreground">{{ resultado.aviso }}</p>
+              }
+            </li>
+          }
+        </ul>
+      </app-panel>
+    </div>
+  } @else if (!erro()) {
+    <p class="text-sm text-muted-foreground">Carregando o estado da correição…</p>
+  }
+</app-shell>

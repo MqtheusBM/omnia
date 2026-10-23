@@ -1,4 +1,4 @@
-import { Component, signal, computed } from '@angular/core';
+import { Component, signal, computed, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 
@@ -12,6 +12,7 @@ import {
   RegraBiblioteca,
   DetalheRegraInfo,
 } from '../../mock-data/prototype-data';
+import { ProcessosApiService } from '../../services/processos-api.service';
 
 @Component({
   selector: 'app-checklist',
@@ -26,8 +27,19 @@ import {
   templateUrl: './checklist.component.html',
   styleUrl: './checklist.component.scss',
 })
-export class ChecklistComponent {
-  readonly biblioteca: RegraBiblioteca[] = biblioteca;
+export class ChecklistComponent implements OnInit {
+  private readonly api = inject(ProcessosApiService);
+  private readonly bibliotecaLista = signal<RegraBiblioteca[]>(biblioteca);
+  get biblioteca(): RegraBiblioteca[] {
+    return this.bibliotecaLista();
+  }
+
+  ngOnInit(): void {
+    this.api.listarRegras().subscribe({
+      next: (regras) => this.bibliotecaLista.set(regras),
+      error: () => this.bibliotecaLista.set(biblioteca),
+    });
+  }
 
   regrasPendentes = signal([
     { 

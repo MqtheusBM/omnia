@@ -19,6 +19,8 @@ import {
 
 import { ParecerService } from '../../services/parecer.service';
 import { Parecer, AnotacaoClassificada, AnotacaoCategoria } from '../../models/parecer.model';
+import { firstValueFrom } from 'rxjs';
+import { JobResult, ProcessosApiService } from '../../services/processos-api.service';
 
 @Component({
   selector: 'app-aprovacao-processo',
@@ -38,6 +40,10 @@ import { Parecer, AnotacaoClassificada, AnotacaoCategoria } from '../../models/p
 export class AprovacaoProcessoComponent implements OnInit {
   private route = inject(ActivatedRoute);
   private parecerService = inject(ParecerService);
+  private api = inject(ProcessosApiService);
+  readonly jobId = signal<string | null>(null);
+  readonly carregandoResultado = signal(false);
+  readonly erroResultado = signal<string | null>(null);
 
   processo = signal<string>('0801234-00.2026.8.23.0001');
   linhas: ItemVeredito[] = (correicaoPorProcesso['padrao'] ?? []).map(l => ({ ...l }));
@@ -136,6 +142,10 @@ export class AprovacaoProcessoComponent implements OnInit {
       if (params['processo']) {
         this.processo.set(params['processo']);
       }
+      if (params['job_id'] && params['job_id'] !== this.jobId()) {
+        this.jobId.set(params['job_id']);
+        void this.carregarResultado(params['job_id']);
+      }
       // Ao retornar da página de edição, reabre o modal com o parecer atualizado
       if (params['abrirParecer'] === '1') {
         const parecerAtualizado = this.parecerService.parecerAtivo();
@@ -145,6 +155,26 @@ export class AprovacaoProcessoComponent implements OnInit {
         }
       }
     });
+  }
+
+  private async carregarResultado(jobId: string): Promise<void> {
+    this.carregandoResultado.set(true);
+    try {
+      const resultado: JobResult = await firstValueFrom(this.api.obterResultado(jobId));
+      this.linhas = resultado.respostas.map((r) => ({
+        regra: r.pergunta_id,
+        veredito: r.resposta === 'Sim' ? 'Atende' : r.resposta === 'Não' ? 'Não atende' : 'Não se encaixa',
+        trecho: [r.evidencia, r.observacao, `Confiança ${r.confianca}`].filter(Boolean).join(' · ') || 'Sem evidência textual retornada.',
+      }));
+      this.timeline.splice(0, this.timeline.length);
+      this.tramitacoes.splice(0, this.tramitacoes.length);
+      this.erroResultado.set(null);
+    } catch {
+      this.linhas = [];
+      this.erroResultado.set('O resultado deste PDF ainda não está disponível na API.');
+    } finally {
+      this.carregandoResultado.set(false);
+    }
   }
 
   /** Alterna a regra expandida no accordion de detalhes */

@@ -47,6 +47,36 @@ npm start
 ```
 A aplicação ficará disponível em **http://localhost:4200**
 
+### Executar com a API
+
+Em outro terminal, configure as credenciais do backend em `backend/.env` e inicie
+MongoDB e a API conforme as instruções de `backend/README.md`. O frontend local
+usa `http://localhost:8000` por padrão; o backend permite chamadas de
+`http://localhost:4200` e `http://127.0.0.1:4200`.
+
+Na tela **Aprovação e execução**, selecione um PDF e escolha **Enviar e iniciar
+análise**. A tela acompanha o processamento e exibe respostas e evidências. O
+questionário atualmente enviado é `questionario-exemplo-v1`.
+
+O planejamento também consulta `GET /v1/processos/catalogo` e `GET /v1/processos/regras`.
+Ao iniciar a correição, envia a quantidade escolhida e os IDs dos PDFs para
+`POST /v1/correicoes`; o lote cria um job por PDF e acompanha em
+`/acompanhamento?correicao_id=<id>`. Quando todos terminam, o fluxo abre a aprovação
+com os resultados dos jobs. A revisão individual recebe as respostas e evidências
+reais; ao emitir parecer, o serviço frontend gera o relatório com esses dados.
+A pasta `processos` é montada como leitura no backend pelo Docker Compose. O lote
+aceita até 30 PDFs.
+
+O catálogo de regras executáveis está em
+`backend/app/questionarios/regras_correcionais_v1.json`. A seleção da unidade no
+frontend ainda é demonstrativa, pois os PDFs não têm metadados de unidade; ela não
+filtra o lote. O backend retorna evidências e respostas por regra, mas ainda não
+fornece eventos de tramitação.
+
+Para produção, atualize `apiUrl` em
+`frontend/omnia/src/app/enviroment/environment.prod.ts` para a URL implantada da
+API e configure `CORS_ORIGINS` no backend com a origem pública do frontend.
+
 ---
 
 ## 🗺️ Fluxo Principal da Aplicação
